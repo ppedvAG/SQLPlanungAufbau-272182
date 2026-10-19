@@ -1,0 +1,11 @@
+In der Virtualisierung ist es wichtig auf Folgendes zu achten:
+
+
+1. Kein dynamischer Arbeitsspeicher bei SQL Server
+
+2. CPUS zuweisen. Am besten mind 4 Kerne
+
+3. Dem Betriebssystem , unter dem die Virtualsierung läuft, keine Ressourcen rauben, die es braucht.
+
+
+

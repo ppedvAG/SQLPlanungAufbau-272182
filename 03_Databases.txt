@@ -1,0 +1,13 @@
+--Datenbanken sollten bereits zu Beginn folgende Eigenschaften aufweisen:
+
+1. Die Größe sollte so eingestellt sein, dass ein regelmäßiges Wachstum 
+vermieden werden kann
+
+2. Das Wachstum solle folglich selten stattfinden und , wenn nicht in kleine 1 MB Häppchen.
+Ein guter Ansatz wäre 1024 MB
+
+3. Die Log und Daten Dateien sollte auf verschiedenen Laufwerken liegen
+
+Migrierte DB behalten Ihre Settings. Auch wenn ein neuerer Server bessere Grundeinstellungen vorschlägt, ändert das nichts an den bestehenden Einstellungen einer DB.
+
+

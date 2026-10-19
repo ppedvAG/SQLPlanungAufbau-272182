@@ -1,0 +1,48 @@
+Das Setup des SQL Server braucht nur wenige Infos:
+
+
+1. Wieviel kerne haben wir und wieviel RAM!
+
+Installation muss folgendes wissen:
+
+- MAXDOP : 
+wieviel Kerne bekommt eine Abfrage maximal
+Regel: MAXDOP = Anzahl der Kerne , aber nicht mehr als 8
+
+32 Kerne--> MAXDOP wäre: 8 --> Wieviel Kerne verwendet der SQL Server: 32
+
+
+- RAM
+das ist er Datenpuffer, der muss begrenzt sein , weil auch das OS RAM benötigt
+Formel: Gesamter RAM - OS (4 bis 10GB)
+
+
+- HDD
+Regel: Trenne Daten von Log physikalisch durch mehrere HDDS
+
+- Backup
+sollte immer ein Ort sein, wo keine DB Dateien liegen
+
+
+- TempDB
+gibt's nur 1 x 
+Dort kommen #Tabellen (temporäre Tabellen), Auslagerungen, Zeilenversionierung, Sortieren..
+Regel: Sollte eig Laufwerk sein
+Regel: Trenne Daten von Log physikalisch durch mehrere HDDS
+
+Filestreaming:
+- mit Hilfe von Filetables, lassen sich Dateien über Freigaben hochladen
+- und dann per TSQL abfragen
+- Freigaben: Rechte und Backup über SQL Server
+
+
+
+
+
+	
+
+
+
+
+
+
