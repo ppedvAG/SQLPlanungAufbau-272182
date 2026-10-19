@@ -1,11 +1,62 @@
-In der Virtualisierung ist es wichtig auf Folgendes zu achten:
+# SQL Server in virtualisierten Umgebungen
 
+Eine virtuelle Maschine (VM) kann SQL Server zuverlässig betreiben. Entscheidend
+sind eine passende Dimensionierung, vorhersehbare Ressourcen und eine laufende
+Überwachung. Die folgenden Hinweise sind Ausgangspunkte; die konkrete Auslegung
+richtet sich nach Workload, Lizenzierung, Verfügbarkeit und Hypervisor.
 
-1. Kein dynamischer Arbeitsspeicher bei SQL Server
+## CPU und Arbeitsspeicher
 
-2. CPUS zuweisen. Am besten mind 4 Kerne
+- **CPU passend dimensionieren:** Eine feste Mindestzahl von vier Kernen ist
+  keine allgemeingültige Empfehlung. Beginnen Sie mit einer begründeten
+  Dimensionierung und beobachten Sie CPU-Auslastung, Wartezeiten und
+  Antwortzeiten. Zu viele virtuelle CPUs können auf einem überlasteten Host
+  ebenfalls Nachteile verursachen.
+- **Host nicht überlasten:** Lassen Sie dem Host und anderen VMs genügend
+  CPU- und Arbeitsspeicher-Reserven. Prüfen Sie CPU-Überbelegung und
+  Speicherballooning gemeinsam mit den Leistungsdaten des Hypervisors.
+- **Speicher planbar zuweisen:** Für eine konstante Datenbankleistung ist eine
+  feste Speicherzuweisung oft einfacher zu planen. Dynamischer Speicher ist
+  nicht pauschal ausgeschlossen, muss aber zur SQL-Server-Konfiguration passen
+  und sorgfältig überwacht werden. SQL Server muss außerdem genügend Speicher
+  für Windows und weitere Dienste übrig lassen; begrenzen Sie dafür den
+  maximalen Serverspeicher.
+- **NUMA berücksichtigen:** Bei großen VMs beeinflussen virtuelle NUMA-Knoten
+  und die Zuordnung der vCPUs zum Host die Leistung. Prüfen Sie die
+  Hypervisor-Einstellungen und messen Sie unter realistischen Bedingungen.
 
-3. Dem Betriebssystem , unter dem die Virtualsierung läuft, keine Ressourcen rauben, die es braucht.
+## Datenträger und Betrieb
 
+- **Speicherleistung messen:** Achten Sie nicht nur auf die Kapazität, sondern
+  auch auf Latenz und Durchsatz der Datenträger. Daten-, Protokoll- und
+  TempDB-Dateien können getrennte Volumes erhalten, wenn dadurch tatsächlich
+  unabhängige Speicherressourcen oder eine bessere Verwaltung entstehen.
+  Getrennte Laufwerksbuchstaben allein garantieren keine getrennte I/O-Leistung.
+- **Backups separat aufbewahren:** Ein Backup auf demselben Datenträger oder
+  Speicherpool wie die Datenbank schützt nicht vor dessen Ausfall. Bewahren Sie
+  Kopien nach Möglichkeit zusätzlich getrennt und gegen unbefugte Änderung
+  geschützt auf; testen Sie die Wiederherstellung regelmäßig.
+- **Snapshots nicht als Backup betrachten:** VM-Snapshots sind kein Ersatz für
+  SQL-Server-Sicherungen. Stimmen Sie Snapshots und Sicherungen mit dem
+  Wiederherstellungsziel und den Vorgaben des Hypervisors ab.
+- **Wartung abstimmen:** Planen Sie Updates, Neustarts, Sicherungen und
+  Hypervisor-Wartungsfenster so, dass Verfügbarkeit und Wiederherstellungsziele
+  eingehalten werden. Prüfen Sie die von Microsoft unterstützten
+  Konfigurationen für die jeweilige SQL-Server-Version und Plattform.
 
+## Tipps aus der Praxis
 
+1. Erfassen Sie vor und nach Änderungen eine Baseline, zum Beispiel CPU,
+   Arbeitsspeicher, Datenträgerlatenz und SQL-Server-Wartezeiten.
+2. Ändern Sie nicht gleichzeitig VM-Größe, Speicherkonfiguration und
+   SQL-Server-Einstellungen. So lässt sich die Wirkung einer Änderung besser
+   beurteilen.
+3. Simulieren Sie die erwartete Spitzenlast und prüfen Sie, ob Host und VM
+   dabei genügend Reserven haben.
+4. Dokumentieren Sie VM-Ressourcen, virtuelle Datenträger, SQL-Dateipfade und
+   die Zuständigkeiten für Sicherung und Wiederherstellung.
+
+## Microsoft-Informationen
+
+- [SQL Server auf virtuellen Computern – Leistungsrichtlinien](https://learn.microsoft.com/en-us/azure/azure-sql/virtual-machines/windows/performance-guidelines-best-practices)
+- [Server memory configuration options](https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/server-memory-server-configuration-options)

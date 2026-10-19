@@ -1,48 +1,112 @@
-Das Setup des SQL Server braucht nur wenige Infos:
+# SQL Server: Installation und Grundeinstellungen
 
+Eine gute Installation beginnt mit einer Bestandsaufnahme. Erfassen Sie vorab
+die erwartete Auslastung, das Datenwachstum, die Verfügbarkeitsanforderungen
+und die Wiederherstellungsziele. Die passenden Einstellungen hängen von der
+SQL-Server-Version, der Hardware und den Anwendungen ab.
 
-1. Wieviel kerne haben wir und wieviel RAM!
+## Vor der Installation planen
 
-Installation muss folgendes wissen:
+- **CPU und Arbeitsspeicher:** Ermitteln Sie die tatsächlich verfügbaren
+  Ressourcen und die Anforderungen der Workloads. Planen Sie auch Reserven für
+  Windows, Überwachungssoftware, Sicherungsagenten und andere Dienste ein.
+- **Datenträger und Dateipfade:** Legen Sie Pfade und Volumes für
+  Benutzerdatenbanken, Transaktionsprotokolle, TempDB und Sicherungen fest.
+  Prüfen Sie Kapazität, I/O-Leistung, Berechtigungen und freien Speicherplatz.
+- **Konten und Sicherheit:** Verwenden Sie für SQL-Server-Dienste geeignete,
+  dedizierte Konten mit den erforderlichen, möglichst geringen Berechtigungen.
+  Aktivieren Sie nur benötigte Funktionen und Netzwerkprotokolle.
+- **Wartung und Wiederherstellung:** Planen Sie Updates, Überwachung,
+  Datenbankintegritätsprüfungen sowie vollständige und gegebenenfalls
+  differenzielle und Protokollsicherungen ein. Legen Sie fest, wie schnell
+  Datenbanken wiederhergestellt werden müssen, und testen Sie diesen Ablauf.
 
-- MAXDOP : 
-wieviel Kerne bekommt eine Abfrage maximal
-Regel: MAXDOP = Anzahl der Kerne , aber nicht mehr als 8
+## Wichtige Einstellungen
 
-32 Kerne--> MAXDOP wäre: 8 --> Wieviel Kerne verwendet der SQL Server: 32
+### MAXDOP
 
+MAXDOP (maximale Parallelität) begrenzt, wie viele Prozessoren eine einzelne
+Abfrage parallel verwenden darf. Der Wert ist nicht einfach mit der gesamten
+Anzahl der CPU-Kerne gleichzusetzen. Berücksichtigen Sie die logischen
+Prozessoren pro NUMA-Knoten, die SQL-Server-Version und die Workload.
 
-- RAM
-das ist er Datenpuffer, der muss begrenzt sein , weil auch das OS RAM benötigt
-Formel: Gesamter RAM - OS (4 bis 10GB)
+Als grobe Orientierung nennt Microsoft für einen NUMA-Knoten mit bis zu acht
+logischen Prozessoren einen MAXDOP-Wert bis zur Anzahl dieser Prozessoren.
+Bei mehr als acht logischen Prozessoren pro NUMA-Knoten ist acht ein möglicher
+Ausgangswert. Das ist keine universelle Vorgabe: Messen Sie die Wirkung und
+prüfen Sie die Empfehlungen für Ihre Version und Umgebung. MAXDOP legt nicht
+fest, wie viele Kerne der SQL Server insgesamt verwenden darf.
 
+### Maximaler Serverspeicher
 
-- HDD
-Regel: Trenne Daten von Log physikalisch durch mehrere HDDS
+SQL Server verwendet Arbeitsspeicher unter anderem für den Datenpuffer und
+weitere interne Komponenten. Setzen Sie den maximalen Serverspeicher so, dass
+Windows und weitere Anwendungen ausreichend Speicher behalten. Eine starre
+Formel wie „Gesamtspeicher minus 4 bis 10 GB“ ist nicht für jede Maschine
+geeignet. Berücksichtigen Sie Größe des Servers, installierte Komponenten und
+andere speicherintensive Prozesse und kontrollieren Sie die Auslastung im
+Betrieb.
 
-- Backup
-sollte immer ein Ort sein, wo keine DB Dateien liegen
+### Datendateien und Protokolldateien
 
+Trennen Sie Daten- und Protokolldateien, wenn verschiedene Volumes eine
+tatsächliche Trennung der I/O-Ressourcen, bessere Verwaltung oder passendere
+Sicherheits- und Wiederherstellungskonzepte ermöglichen. Unterschiedliche
+Laufwerksbuchstaben auf demselben Speicherpool bringen nicht automatisch mehr
+Leistung. Stellen Sie genügend Kapazität bereit und überwachen Sie Latenz,
+Durchsatz und freien Speicherplatz.
 
-- TempDB
-gibt's nur 1 x 
-Dort kommen #Tabellen (temporäre Tabellen), Auslagerungen, Zeilenversionierung, Sortieren..
-Regel: Sollte eig Laufwerk sein
-Regel: Trenne Daten von Log physikalisch durch mehrere HDDS
+### TempDB
 
-Filestreaming:
-- mit Hilfe von Filetables, lassen sich Dateien über Freigaben hochladen
-- und dann per TSQL abfragen
-- Freigaben: Rechte und Backup über SQL Server
+TempDB ist eine Systemdatenbank, die bei jedem Start der SQL-Server-Instanz neu
+erstellt wird. Sie speichert unter anderem temporäre Tabellen, interne
+Arbeitsobjekte und Zeilenversionen. Die Datenbank besteht nicht zwingend nur
+aus einer Datei.
 
+- Verwenden Sie bei mehreren TempDB-Datendateien zunächst gleich große Dateien
+  mit gleichen Wachstumseinstellungen.
+- Die geeignete Anzahl hängt von Version, CPU-Topologie und beobachteten
+  Konflikten ab. Erstellen Sie nicht ungeprüft eine Datei pro CPU-Kern.
+- Dimensionieren Sie Daten- und Protokolldateien so, dass häufiges Wachstum
+  unter normaler Last vermieden wird. Überwachen Sie Wachstum und Auslastung.
+- Ein eigenes, leistungsfähiges Volume kann sinnvoll sein, sofern es die
+  Speicherleistung tatsächlich verbessert und ausreichend überwacht wird.
 
+### Sicherungen
 
+Speichern Sie Sicherungen nicht ausschließlich am Speicherort der
+Datenbankdateien. Halten Sie nach Möglichkeit eine zusätzliche Kopie auf einem
+getrennten System oder in einem getrennten, gegen Änderungen geschützten
+Speicher. Die Sicherungsstrategie muss zum Wiederherstellungsziel und zum
+Wiederherstellungspunktziel passen. Ein Backup ist erst dann verlässlich, wenn
+die Wiederherstellung regelmäßig getestet wird.
 
+### FILESTREAM und FileTable
 
-	
+FILESTREAM ermöglicht die Speicherung von BLOB-Daten im NTFS-Dateisystem und
+deren Verwaltung über SQL Server. FileTable baut darauf auf und stellt Dateien
+über eine Windows-Dateifreigabe bereit; Tabelleninhalte lassen sich zugleich
+mit Transact-SQL abfragen. Diese Funktionen benötigen zusätzliche
+Konfiguration und passende Berechtigungen. Prüfen Sie vor dem Einsatz
+Anwendungsanforderungen, Sicherheitskonzept und Sicherungs-/Restore-Verfahren.
+Die Freigabe sollte nicht mit der Aussage verwechselt werden, SQL Server
+übernehme automatisch alle Rechte- und Backup-Aufgaben.
 
+## Tipps aus der Praxis
 
+1. Verwenden Sie für Verzeichnisse und Dateien nachvollziehbare Namens- und
+   Pfadkonventionen und dokumentieren Sie ihre Zuordnung zu Volumes.
+2. Beobachten Sie nach der Installation Baseline-Werte und ändern Sie
+   Leistungsparameter erst anhand konkreter Messungen.
+3. Prüfen Sie Berechtigungen, Firewall-Regeln, Verschlüsselung und
+   Wiederherstellbarkeit als Teil der Abnahme.
+4. Halten Sie SQL-Server-Version, Edition, Patchstand und Konfiguration
+   nachvollziehbar fest.
 
+## Microsoft-Informationen
 
-
-
+- [MAXDOP konfigurieren](https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/configure-the-max-degree-of-parallelism-server-configuration-option)
+- [Server memory configuration options](https://learn.microsoft.com/en-us/sql/database-engine/configure-windows/server-memory-server-configuration-options)
+- [TempDB database](https://learn.microsoft.com/en-us/sql/relational-databases/databases/tempdb-database)
+- [SQL Server installieren](https://learn.microsoft.com/en-us/sql/database-engine/install-windows/install-sql-server)
+- [FILESTREAM konfigurieren und verwalten](https://learn.microsoft.com/en-us/sql/relational-databases/blob/configure-and-manage-filestream)
