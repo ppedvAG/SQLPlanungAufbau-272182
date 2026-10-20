@@ -1,13 +1,77 @@
---Datenbanken sollten bereits zu Beginn folgende Eigenschaften aufweisen:
+# Datenbanken: Planung und Betrieb
 
-1. Die Größe sollte so eingestellt sein, dass ein regelmäßiges Wachstum 
-vermieden werden kann
+Eine Datenbank sollte nicht erst dann angepasst werden, wenn der Speicherplatz
+knapp wird oder häufige Dateivergrößerungen die Leistung beeinträchtigen.
+Planen Sie Größe, Wachstum, Sicherungen und Überwachung passend zu den
+Anforderungen der Anwendung.
 
-2. Das Wachstum solle folglich selten stattfinden und , wenn nicht in kleine 1 MB Häppchen.
-Ein guter Ansatz wäre 1024 MB
+## Daten- und Protokolldateien
 
-3. Die Log und Daten Dateien sollte auf verschiedenen Laufwerken liegen
+- **Anfangsgröße planen:** Dimensionieren Sie die Dateien anhand der vorhandenen
+  Daten und des erwarteten Wachstums. Eine realistische Anfangsgröße kann
+  häufige automatische Vergrößerungen vermeiden; planen Sie trotzdem
+  ausreichend freien Speicherplatz ein.
+- **Autogrowth sinnvoll einstellen:** Legen Sie feste Wachstumsschritte fest,
+  die zur Dateigröße und zum verfügbaren Speicher passen. Sehr kleine Schritte
+  können häufiges Wachstum verursachen; sehr große Schritte können
+  unerwartet viel Speicher belegen oder die Vergrößerung verzögern. Ein
+  pauschaler Wert wie 1.024 MB ist nicht für jede Datenbank passend.
+- **Wachstum überwachen:** Autogrowth ist ein Sicherheitsnetz, kein Ersatz für
+  Kapazitätsplanung. Alarmieren Sie bei knappem Speicher und prüfen Sie
+  regelmäßig, ob das Wachstum zur tatsächlichen Änderungsrate passt.
+- **Daten und Protokoll unterscheiden:** Datenbankdateien enthalten Tabellen
+  und Indizes; Protokolldateien erfassen Transaktionen. Separate Volumes
+  können unterschiedliche I/O-Anforderungen bedienen, sofern dahinter
+  tatsächlich getrennte Ressourcen liegen. Es ist keine Pflicht, wenn
+  Architektur oder Speicherplattform dadurch keinen Vorteil bietet.
+- **Protokollgröße beachten:** Die Größe des Transaktionsprotokolls hängt unter
+  anderem vom Wiederherstellungsmodell und von der Häufigkeit der
+  Protokollsicherungen ab. Im vollständigen Wiederherstellungsmodell sind
+  regelmäßige Protokollsicherungen erforderlich, damit das Protokoll
+  wiederverwendet werden kann. Verkleinern Sie Dateien nicht routinemäßig;
+  häufiges Verkleinern und anschließendes Wachstum ist meist kontraproduktiv.
 
-Migrierte DB behalten Ihre Settings. Auch wenn ein neuerer Server bessere Grundeinstellungen vorschlägt, ändert das nichts an den bestehenden Einstellungen einer DB.
+## Datenbankoptionen und Migration
 
+- Lassen Sie automatische Statistiken in der Regel aktiviert, damit der
+  Abfrageoptimierer aktuelle Informationen über Datenverteilungen erhält.
+  Abweichungen davon sollten workloadbezogen begründet und getestet werden.
+- Deaktivieren Sie `AUTO_CLOSE` für typische Serverdatenbanken, sofern es keinen
+  konkreten Grund dafür gibt. Vermeiden Sie außerdem routinemäßiges
+  `AUTO_SHRINK`.
+- Eine wiederhergestellte oder angehängte Datenbank behält viele
+  Datenbankoptionen bei. Der Kompatibilitätsgrad kann nach einer Migration
+  weiterhin dem Quellsystem entsprechen. Instanzweite Einstellungen werden
+  dadurch nicht automatisch übernommen. Prüfen Sie nach der Migration
+  Kompatibilität, Optionen, Benutzerzuordnungen, Jobs, Sicherungspläne und
+  Leistung separat.
+- Testen Sie Änderungen des Kompatibilitätsgrads mit repräsentativen Abfragen
+  und Anwendungstests, bevor Sie sie produktiv übernehmen.
 
+## Sicherung und Wiederherstellung
+
+Wählen Sie Wiederherstellungsmodell und Sicherungsplan anhand des gewünschten
+Wiederherstellungspunkts und der maximal akzeptablen Ausfallzeit. Sichern Sie
+die Datenbanken regelmäßig und bewahren Sie Sicherungen nicht nur auf demselben
+System oder Speicher wie die Datenbank auf. Prüfen Sie Sicherungsprotokolle,
+Speicherplatz und Aufbewahrungsfristen. Testen Sie regelmäßig eine vollständige
+Wiederherstellung einschließlich benötigter Protokollsicherungen.
+
+## Tipps aus der Praxis
+
+1. Erfassen Sie Dateigröße, freien Speicher, Wachstumsrate und
+   Protokollauslastung in der Überwachung.
+2. Vermeiden Sie pauschale Standardwerte für Dateigröße und Wachstum. Wählen
+   Sie Werte aus beobachtetem Wachstum und testen Sie sie.
+3. Prüfen Sie nach Lastspitzen, Migrationen und größeren Datenimporten die
+   Kapazität und die Sicherungsdauer erneut.
+4. Dokumentieren Sie Datenbankoptionen und Änderungen, damit Abweichungen von
+   den Standardeinstellungen nachvollziehbar sind.
+
+## Microsoft-Informationen
+
+- [Datenbankdateien und Dateigruppen](https://learn.microsoft.com/en-us/sql/relational-databases/databases/database-files-and-filegroups)
+- [Transaktionsprotokoll und Verwaltung](https://learn.microsoft.com/en-us/sql/relational-databases/logs/the-transaction-log-sql-server)
+- [Wiederherstellungsmodelle](https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/recovery-models-sql-server)
+- [Übersicht über Sicherungen](https://learn.microsoft.com/en-us/sql/relational-databases/backup-restore/backup-overview-sql-server)
+- [Datenbankkompatibilitätsgrad](https://learn.microsoft.com/en-us/sql/relational-databases/databases/view-or-change-the-compatibility-level-of-a-database)
