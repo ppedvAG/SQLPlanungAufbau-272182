@@ -10,7 +10,7 @@ schneller finden oder in einer benötigten Reihenfolge lesen kann. Ein Index
 kostet Speicherplatz und muss bei INSERT, UPDATE und DELETE mitgepflegt werden.
 Jeder zusätzliche oder zu breite Index kann Schreibvorgänge deshalb verlangsamen.
 
-ARTEN VON INDEIZES
+ARTEN VON INDIZES
 ------------------
 1. Heap
    Eine Tabelle ohne gruppierten Index (Clustered Index) ist ein Heap. Die
@@ -154,7 +154,7 @@ GO
 DROP TABLE IF EXISTS dbo.ku2;
 SELECT *
 INTO dbo.ku2
-FROM dbo.ku;
+FROM dbo.KU;
 GO
 
 -- Die Identitätsspalte wird nachträglich ergänzt. In einem Heap können dabei
@@ -194,61 +194,66 @@ GO
 ----------------------------------------------------------------------------
 
 -- Neu aus der Quelle aufbauen, damit die Übung reproduzierbar ist.
+-- Eine indizierte Sicht ist an die Basistabelle gebunden und wird vorher entfernt.
+DROP VIEW IF EXISTS dbo.vdemo;
+GO
+
 DROP TABLE IF EXISTS dbo.ku1;
 SELECT *
 INTO dbo.ku1
-FROM dbo.ku;
+FROM dbo.KU;
 GO
 
 -- X_Spieltabelle.sql kann eine ID-Spalte anlegen. Nur ergänzen, falls sie fehlt.
-IF COL_LENGTH(N'dbo.ku1', N'id') IS NULL
+IF COL_LENGTH(N'dbo.ku1', N'ID') IS NULL
 BEGIN
     ALTER TABLE dbo.ku1
-    ADD id INT IDENTITY(1, 1);
+    ADD ID INT IDENTITY(1, 1);
 END;
 GO
 
 -- Baseline messen. Ohne passenden Index ist ein Scan wahrscheinlich.
 SET STATISTICS IO, TIME ON;
 
-SELECT id
+SELECT ID
 FROM dbo.ku1
-WHERE id = 100;
+WHERE ID = 100;
 GO
 
 -- Ein nicht gruppierter Index ermöglicht bei einer selektiven Suche einen
--- Seek. Bei einem Heap kann der Zugriff zusätzlich die RID verwenden.
+-- Seek. Der Zugriff auf eine Heap-Zeile erfolgt bei Bedarf über deren RID.
 CREATE NONCLUSTERED INDEX IX_ku1_id
-    ON dbo.ku1 (id);
+    ON dbo.ku1 (ID);
 GO
 
-SELECT id
+SELECT ID
 FROM dbo.ku1
-WHERE id = 100;
+WHERE ID = 100;
 GO
 
--- Freight ist im Index nicht enthalten: SQL Server kann einen Key Lookup
--- benötigen. Bei vielen Treffern kann ein Scan trotzdem günstiger sein.
-SELECT id, freight
+-- Freight ist im Index nicht enthalten: Als Heap kann die Tabelle einen RID
+-- Lookup benötigen (bei einer gruppierten Tabelle wäre es ein Key Lookup).
+-- Bei vielen Treffern kann ein Scan trotzdem günstiger sein.
+SELECT ID, Freight
 FROM dbo.ku1
-WHERE id = 100;
+WHERE ID = 100;
 GO
 
-SELECT id, freight
+SELECT ID, Freight
 FROM dbo.ku1
-WHERE id < 10500;
+WHERE ID < 10500;
 GO
 
 -- INCLUDE deckt die Abfrage ab. Das kann Lookups vermeiden, vergrößert aber
 -- den Index und erhöht dessen Pflegekosten.
 CREATE NONCLUSTERED INDEX IX_ku1_id_include_freight
-    ON dbo.ku1 (id)
-    INCLUDE (freight);
+    ON dbo.ku1 (ID)
+    INCLUDE (Freight);
 GO
 
-SELECT id, freight
+SELECT ID, Freight
 FROM dbo.ku1
-WHERE id < 900500;
+WHERE ID < 900500;
 GO
 
 ----------------------------------------------------------------------------
@@ -257,26 +262,26 @@ GO
 
 -- Gleichheitsbedingung auf country, danach Bereichsbedingung auf freight.
 CREATE NONCLUSTERED INDEX IX_ku1_country_freight
-    ON dbo.ku1 (country, freight);
+    ON dbo.ku1 (Country, Freight);
 GO
 
 SELECT *
 FROM dbo.ku1
-WHERE country = N'USA'
-  AND freight < 1;
+WHERE Country = N'USA'
+  AND Freight < 1;
 GO
 
--- Für eine Teilmenge kann ein gefilterter Index kleiner als ein vollständiger
--- Index sein. Die Abfrage muss den Filter des Indexes erfüllen.
+-- Alternative zum ungefilterten Index: Für eine Teilmenge kann ein gefilterter
+-- Index kleiner sein. Beide Varianten nicht ohne Messung dauerhaft behalten.
 CREATE NONCLUSTERED INDEX IX_ku1_country_freight_usa
-    ON dbo.ku1 (freight)
-    WHERE country = N'USA';
+    ON dbo.ku1 (Freight)
+    WHERE Country = N'USA';
 GO
 
 SELECT *
 FROM dbo.ku1
-WHERE country = N'USA'
-  AND freight < 1;
+WHERE Country = N'USA'
+  AND Freight < 1;
 GO
 
 ----------------------------------------------------------------------------
@@ -286,63 +291,75 @@ GO
 -- Suchspalte als Schlüssel, benötigte Gruppierungs- und Rechenspalten als
 -- INCLUDE-Spalten. Mit den tatsächlichen Plänen und Messwerten vergleichen.
 CREATE NONCLUSTERED INDEX IX_ku1_employee_cover
-    ON dbo.ku1 (employeeid)
-    INCLUDE (country, city, unitprice, quantity);
+    ON dbo.ku1 (EmployeeID)
+    INCLUDE (Country, City, UnitPrice, Quantity);
 GO
 
 SELECT
-    country,
-    city,
-    SUM(unitprice * quantity) AS Umsatz
+    Country,
+    City,
+    SUM(UnitPrice * Quantity) AS Umsatz
 FROM dbo.ku1
-WHERE employeeid = 2
-GROUP BY country, city;
+WHERE EmployeeID = 2
+GROUP BY Country, City;
 GO
 
 CREATE NONCLUSTERED INDEX IX_ku1_employee_shipcountry_cover
-    ON dbo.ku1 (employeeid, shipcountry)
-    INCLUDE (companyname, lastname, productname);
+    ON dbo.ku1 (EmployeeID, ShipCountry)
+    INCLUDE (CompanyName, LastName, ProductName);
 GO
 
-SELECT companyname, lastname, productname
+SELECT CompanyName, LastName, ProductName
 FROM dbo.ku1
-WHERE employeeid = 2
-  AND shipcountry = N'USA';
+WHERE EmployeeID = 2
+  AND ShipCountry = N'USA';
 GO
 
 -- Bei OR kann kein einzelner zusammengesetzter Index beide Suchpfade so
 -- bedienen wie bei AND. Der Optimierer kann mehrere Zugriffswege kombinieren.
-SELECT companyname, lastname, productname
+SELECT CompanyName, LastName, ProductName
 FROM dbo.ku1
-WHERE employeeid = 2
-   OR shipcountry = N'USA';
+WHERE EmployeeID = 2
+   OR ShipCountry = N'USA';
 GO
 
 ----------------------------------------------------------------------------
 -- 5. Indizierte Sicht
 ----------------------------------------------------------------------------
 
+-- Key-Spalten eines eindeutigen gruppierten Sichtindexes dürfen nicht NULL
+-- sein. Der Filter schließt NULL-Länder daher in dieser Demo bewusst aus.
+SET ANSI_NULLS ON;
+SET ANSI_PADDING ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET CONCAT_NULL_YIELDS_NULL ON;
+SET QUOTED_IDENTIFIER ON;
+SET NUMERIC_ROUNDABORT OFF;
+GO
+
 CREATE OR ALTER VIEW dbo.vdemo
 WITH SCHEMABINDING
 AS
-    SELECT country, COUNT_BIG(*) AS Anzahl
+    SELECT Country, COUNT_BIG(*) AS Anzahl
     FROM dbo.ku1
-    GROUP BY country;
+    WHERE Country IS NOT NULL
+    GROUP BY Country;
 GO
 
--- Die indizierte Sicht benötigt zuerst einen eindeutigen gruppierten Index.
 CREATE UNIQUE CLUSTERED INDEX CIX_vdemo_country
-    ON dbo.vdemo (country);
+    ON dbo.vdemo (Country);
 GO
 
-SELECT country, Anzahl
+SELECT Country, Anzahl
 FROM dbo.vdemo;
 GO
 
 -- Vergleichsabfrage ohne indizierte Sicht.
-SELECT country, COUNT_BIG(*) AS Anzahl
+SELECT Country, COUNT_BIG(*) AS Anzahl
 FROM dbo.ku1
-GROUP BY country;
+WHERE Country IS NOT NULL
+GROUP BY Country;
 GO
 
 ----------------------------------------------------------------------------
@@ -354,7 +371,7 @@ GO
 DROP TABLE IF EXISTS dbo.ku3;
 SELECT *
 INTO dbo.ku3
-FROM dbo.ku;
+FROM dbo.KU;
 GO
 
 CREATE CLUSTERED COLUMNSTORE INDEX CCI_ku3
@@ -362,21 +379,21 @@ CREATE CLUSTERED COLUMNSTORE INDEX CCI_ku3
 GO
 
 SELECT
-    companyname,
-    AVG(quantity) AS Durchschnitt,
-    MIN(quantity) AS Minimum
+    CompanyName,
+    AVG(Quantity) AS Durchschnitt,
+    MIN(Quantity) AS Minimum
 FROM dbo.ku3
-WHERE country = N'Germany'
-GROUP BY companyname;
+WHERE Country = N'Germany'
+GROUP BY CompanyName;
 GO
 
 SELECT
-    companyname,
-    AVG(quantity) AS Durchschnitt,
-    MIN(quantity) AS Minimum
+    CompanyName,
+    AVG(Quantity) AS Durchschnitt,
+    MIN(Quantity) AS Minimum
 FROM dbo.ku3
-WHERE city = N'Berlin'
-GROUP BY companyname;
+WHERE City = N'Berlin'
+GROUP BY CompanyName;
 GO
 
 -- Speicherbedarf vor und nach der Columnstore-Komprimierung vergleichen.
@@ -418,9 +435,10 @@ ORDER BY
     user_scans DESC;
 GO
 
--- Fragmentierung und Seitendichte sind nur im Kontext der Seitanzahl und
+-- Fragmentierung und Seitendichte sind nur im Kontext der Seitenanzahl und
 -- Workload zu bewerten. REORGANIZE/REBUILD nicht pauschal nach Prozentwerten
--- ausführen; anschließend ggf. Statistiken aktualisieren.
+-- ausführen; anschließend ggf. Statistiken aktualisieren. Die Abfrage prüft
+-- alle Tabellen der Datenbank und kann bei großen Datenbanken Aufwand erzeugen.
 SELECT
     OBJECT_SCHEMA_NAME(ps.object_id) AS SchemaName,
     OBJECT_NAME(ps.object_id) AS Tabellenname,
